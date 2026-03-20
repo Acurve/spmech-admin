@@ -2,15 +2,18 @@ import { z } from "zod";
 
 // 1. Define the schema for your environment variables
 const envSchema = z.object({
-    NEXT_PUBLIC_MODE: z.enum(["development", "production"]).default("development"),
-    NEXT_PUBLIC_API_PREFIX: z.url(),
+    MODE: z.enum(["development", "production"]).default("development"),
+    API_PREFIX: z.string(),
 });
 
 // 2. Parse process.env against the schema
-const _env = envSchema.safeParse(process.env);
+const _env = envSchema.safeParse({
+    MODE: process.env.NEXT_PUBLIC_MODE,
+    API_PREFIX: process.env.NEXT_PUBLIC_API_PREFIX,
+})
 
 if (!_env.success) {
-    console.error("❌ Invalid environment variables:", z.treeifyError(_env.error));
+    console.error("❌ Invalid environment variables:", _env.error);
     throw new Error("Invalid environment variables");
 }
 
