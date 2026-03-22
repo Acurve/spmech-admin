@@ -15,9 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { SimpleLoader } from "@/components/loaders";
 
 export default function ProfilePage() {
     const { data: response, isLoading, isError } = useUser();
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+    const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+        resolver: zodResolver(updateUserSchema),
+        defaultValues: {
+            password: ""
+        }
+    })
 
     if (isLoading) return <PageSkeleton />;
 
@@ -51,16 +60,11 @@ export default function ProfilePage() {
     };
 
 
-    const [showPasswordForm, setShowPasswordForm] = useState(false);
-    const { control, handleSubmit, formState: { errors } } = useForm({
-        resolver: zodResolver(updateUserSchema),
-        defaultValues: {
-            password: ""
-        }
-    })
+
+
 
     const submit = (data: UpdateUserSchemaType) => {
-        api.put(`/auth/${user._id}`, data).then((res) => {
+        api.put(`/users/${user._id}`, data).then((res) => {
             setShowPasswordForm(false);
         }).catch((err) => {
         })
@@ -159,21 +163,32 @@ export default function ProfilePage() {
                                             <Button onClick={() => setShowPasswordForm(true)}>Edit</Button>
                                             {
                                                 showPasswordForm && (
-                                                    <form onSubmit={handleSubmit(submit)} className="absolute inset-0 hidden z-10 bg-white">
+                                                    <form onSubmit={handleSubmit(submit)} className="absolute inset-0 z-10 bg-white">
                                                         <Controller
                                                             name="password"
                                                             control={control}
                                                             render={({ field }) => (
                                                                 <Input
                                                                     {...field}
-                                                                    type="password"
+                                                                    type="text"
                                                                     placeholder="Enter new password"
                                                                     className="w-full"
                                                                 />
                                                             )}
                                                         />
                                                         {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
-                                                        <Button type="submit">Update Password</Button>
+
+                                                        <Button
+                                                            type="submit"
+                                                            className="cursor-pointer mt-4"
+                                                            disabled={isSubmitting}>
+                                                            {isSubmitting ?
+                                                                <div className="flex items-center gap-2">
+                                                                    <SimpleLoader />
+                                                                    <span>Updating...</span>
+                                                                </div>
+                                                                : <span>Update Password</span>}
+                                                        </Button>
                                                     </form>
                                                 )
                                             }
