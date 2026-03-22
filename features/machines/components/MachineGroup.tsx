@@ -34,7 +34,7 @@ const MachineGroup = ({ machines, groupName, groupHref, groupDescription = "", c
                     </div>
                     <p className="text-sm text-slate-500">{groupDescription}</p>
                 </div>
-                <LinkTag href={groupHref} className="hidden sm:flex items-center cursor-pointer font-semibold text-primary transition-colors">
+                <LinkTag href={groupHref} className="hidden md:flex shrink-0 w-52 items-center cursor-pointer font-semibold text-primary transition-colors justify-end">
                     <Text as='span' size='sm'>Manage category</Text>
                     <ArrowRight className="w-4 h-4 ml-1" />
                 </LinkTag>

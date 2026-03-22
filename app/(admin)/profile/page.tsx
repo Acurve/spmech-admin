@@ -8,6 +8,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { Badge } from "@/components/ui/badge";
 import { Mail, Shield, Clock, CalendarDays, Activity } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { updateUserSchema, UpdateUserSchemaType } from "@/features/auth";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { api } from "@/lib/api";
 
 export default function ProfilePage() {
     const { data: response, isLoading, isError } = useUser();
@@ -43,14 +50,28 @@ export default function ProfilePage() {
         }
     };
 
+
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const { control, handleSubmit, formState: { errors } } = useForm({
+        resolver: zodResolver(updateUserSchema),
+        defaultValues: {
+            password: ""
+        }
+    })
+
+    const submit = (data: UpdateUserSchemaType) => {
+        api.put(`/auth/${user._id}`, data).then((res) => {
+            setShowPasswordForm(false);
+        }).catch((err) => {
+        })
+    }
+
     return (
         <div className="w-full mx-auto relative h-full flex flex-col">
             <Header>
-                <HeaderGroup className="gap-6">
-                    <HeaderGroup className="flex-col">
-                        <HeaderTitle>My Profile</HeaderTitle>
-                        <HeaderDescription>Manage your account settings and view active session details.</HeaderDescription>
-                    </HeaderGroup>
+                <HeaderGroup className="flex-col">
+                    <HeaderTitle>My Profile</HeaderTitle>
+                    <HeaderDescription>Manage your account settings and view active session details.</HeaderDescription>
                 </HeaderGroup>
             </Header>
 
@@ -126,6 +147,36 @@ export default function ProfilePage() {
                                         <div className="flex-1">
                                             <p className="text-xs text-slate-500 font-medium mb-1">Date Joined</p>
                                             <p className="text-sm font-medium text-slate-900">{formatDate(user.createdAt)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center p-5 hover:bg-slate-50/50 transition-colors">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 mr-4">
+                                            <CalendarDays className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex-1 relative">
+                                            <p className="text-xs text-slate-500 font-medium mb-1">Password</p>
+                                            <p className="text-sm font-medium text-slate-900">********</p>
+                                            <Button onClick={() => setShowPasswordForm(true)}>Edit</Button>
+                                            {
+                                                showPasswordForm && (
+                                                    <form onSubmit={handleSubmit(submit)} className="absolute inset-0 hidden z-10 bg-white">
+                                                        <Controller
+                                                            name="password"
+                                                            control={control}
+                                                            render={({ field }) => (
+                                                                <Input
+                                                                    {...field}
+                                                                    type="password"
+                                                                    placeholder="Enter new password"
+                                                                    className="w-full"
+                                                                />
+                                                            )}
+                                                        />
+                                                        {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+                                                        <Button type="submit">Update Password</Button>
+                                                    </form>
+                                                )
+                                            }
                                         </div>
                                     </div>
                                 </div>

@@ -13,7 +13,7 @@ export default async function DashboardLayout({
         <SidebarProvider>
             <AppSidebar />
             <div className="w-full h-full">
-                <div className='p-4 pl-0'>
+                <div className='p-4 pl-4 md:pl-0'>
                     {children}
                 </div>
             </div>

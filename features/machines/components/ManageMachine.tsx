@@ -310,7 +310,7 @@ export function ManageMachineForm({ machine }: { machine: MachineResponse }) {
                         <HeaderDescription>Edit details for {machine?.modelName}</HeaderDescription>
                     </HeaderGroup>
                 </HeaderGroup>
-                <HeaderGroup className="gap-2">
+                <HeaderGroup className="gap-2 ml-auto">
                     <Button variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')}>Cancel</Button>
                     <Button type="submit" form="manage-machine-form" size="lg" className="cursor-pointer" disabled={updateMachineMutation.isPending || !isDirty}>
                         {updateMachineMutation.isPending ?

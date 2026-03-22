@@ -72,7 +72,7 @@ export default function MachinesPage() {
                     <HeaderTitle>Machines Library</HeaderTitle>
                     <HeaderDescription>Manage, add, and organize your complete machinery.</HeaderDescription>
                 </HeaderGroup>
-                <LinkTag href={"/machines/add"} variant="button-brand" className="flex bg-primary text-white gap-2 items-center rounded-xl">
+                <LinkTag href={"/machines/add"} variant="button-brand" className="flex bg-primary text-white gap-2 items-center rounded-xl ml-auto">
                     <Plus className="mr-2 h-4 w-4" />
                     <span>Add Machine</span>
                 </LinkTag>

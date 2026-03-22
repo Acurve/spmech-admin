@@ -182,7 +182,7 @@ export default function AddMachinePage() {
                         <HeaderDescription>Create a new machine manually</HeaderDescription>
                     </HeaderGroup>
                 </HeaderGroup>
-                <HeaderGroup className="gap-2">
+                <HeaderGroup className="gap-2 ml-auto">
                     <Button type="reset" form="add-machine-form" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')}>Cancel</Button>
                     <Button type="submit" form="add-machine-form" size="lg" className="cursor-pointer" disabled={createMachineMutation.isPending}>
                         {createMachineMutation.isPending ? "Saving..." : "Save Machine"}

@@ -41,7 +41,7 @@ export default function AppSidebar() {
     // 1. Add the mounted state
     const [isMounted, setIsMounted] = useState(false)
 
-    const { toggleSidebar, state } = useSidebar()
+    const { toggleSidebar, state, isMobile } = useSidebar()
     const pathname = usePathname()
     const router = useRouter()
     const linkClassName = "hover:bg-orange-50"
@@ -73,7 +73,7 @@ export default function AppSidebar() {
                     {/* spmechlogo */}
                     <div className='py-6 flex gap-1 items-center'>
                         <Image src="/BrandLogo.svg" alt="SP Mech" width={52} height={52} />
-                        <Text as="span" size="lg" className={`font-medium transition-all shrink-0 duration-200 ${state === 'collapsed' ? 'hidden' : ''}`}>
+                        <Text as="span" size="lg" className={`font-medium transition-all shrink-0 duration-200 ${(state === 'collapsed' && !isMobile) ? 'hidden' : ''}`}>
                             SP Mech
                         </Text>
                     </div>
@@ -84,7 +84,7 @@ export default function AppSidebar() {
                         aria-label="Toggle sidebar"
                         variant="ghost"
                     >
-                        {state === "expanded" ? (
+                        {(state === "expanded" || isMobile) ? (
                             <X className="size-5 transition-transform duration-200" />
                         ) : (
                             <Ellipsis className="size-5 transition-transform duration-200" />

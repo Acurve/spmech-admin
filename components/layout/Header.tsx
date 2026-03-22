@@ -1,16 +1,26 @@
+"use client"
 import { cn } from '@/lib/utils'
 import { type PropsWithChildren } from 'react';
 import { LinkTag } from '../shared';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Ellipsis } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useSidebar } from '../ui/sidebar';
 
 type HeaderProps = PropsWithChildren<{
     className?: string,
 
 }>
 export const Header = ({ className = "", children }: HeaderProps) => {
+    const { isMobile, setOpenMobile, openMobile } = useSidebar()
+
     return (
-        <div className={cn("w-full flex mb-4 items-center justify-between px-4 py-6 bg-white rounded-2xl ring-1 ring-sidebar-border", className)}>
+        <div className={cn("w-full relative flex flex-col md:flex-row gap-4 items-start mb-4 md:items-center justify-between px-4 py-6 bg-white rounded-2xl ring-1 ring-sidebar-border", (!openMobile && isMobile) && "pl-16", className)}>
+            <Button
+                variant="secondary"
+                onClick={() => setOpenMobile(true)}
+                className={cn("absolute top-6 bottom-0 left-4 rounded-lg", (!openMobile && isMobile) ? "flex" : "hidden")}>
+                <Ellipsis className="aspect-square transition-transform duration-200" />
+            </Button>
             {children}
         </div>
     )
@@ -35,7 +45,7 @@ type HeaderBackNavigationProps = PropsWithChildren<{
 }>
 export const HeaderBackNavigation = ({ href }: HeaderBackNavigationProps) => {
     return (
-        <LinkTag href={href} className='my-auto'>
+        <LinkTag href={href}>
             <Button variant="outline" className='cursor-pointer h-12 w-12'>
 
                 <ArrowLeft />

@@ -1,9 +1,8 @@
 "use client";
 
-import React from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Plus, GripVertical } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // UI components
@@ -102,7 +101,7 @@ export default function ManageCompanySettingsForm({ companyData }: { companyData
                         <HeaderDescription>Manage public company details, history, and contact endpoints.</HeaderDescription>
                     </HeaderGroup>
                 </HeaderGroup>
-                <HeaderGroup className="gap-2">
+                <HeaderGroup className="gap-2 ml-auto">
                     <Button type="reset" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/')}>Cancel</Button>
                     <Button type="submit" form="company-settings-form" size="lg" className="cursor-pointer" disabled={updateMutation.isPending || !isDirty}>
                         {updateMutation.isPending ? (

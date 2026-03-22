@@ -36,7 +36,7 @@ export default function ProductCard({ imageSrc, name, description, href, id, lin
                     {`${description?.slice(0, 50)}...`}
                 </CardDescription>
             </CardHeader>
-            <CardFooter>
+            <CardFooter className="mt-auto">
                 <LinkTag href={href} variant="button-outline" className="w-full rounded-xl">{linkText}</LinkTag>
             </CardFooter>
         </Card>

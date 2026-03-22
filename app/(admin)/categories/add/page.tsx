@@ -92,7 +92,7 @@ export default function AddCategoryPage() {
                         <HeaderDescription>Create a new category for your machines</HeaderDescription>
                     </HeaderGroup>
                 </HeaderGroup>
-                <HeaderGroup className="gap-2">
+                <HeaderGroup className="gap-2 ml-auto">
                     <Button type="reset" form="create-category-form" variant="outline" size="lg" className="cursor-pointer">Reset</Button>
 
                     <Button type="submit" form="create-category-form" size="lg" className="cursor-pointer">Create Category</Button>

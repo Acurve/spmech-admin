@@ -150,7 +150,7 @@ const ManageCategoryForm = ({ category }: { category: Category }) => {
                         <HeaderDescription>Manage details and settings for this category</HeaderDescription>
                     </HeaderGroup>
                 </HeaderGroup>
-                <HeaderGroup className="gap-2">
+                <HeaderGroup className="gap-2 ml-auto">
                     <Button type="button" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/categories')}>Cancel</Button>
                     <Button type="submit" form="update-category-form" size="lg" className="cursor-pointer" disabled={updateCategoryMutation.isPending || !isDirty}>
                         {updateCategoryMutation.isPending ? <div className="flex items-center gap-2">
