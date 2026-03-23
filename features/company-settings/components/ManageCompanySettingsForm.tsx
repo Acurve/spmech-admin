@@ -19,6 +19,7 @@ import { icons } from "@/constants/icons";
 // Hooks and Data
 import { manufacturerInfoSchema, ManufacturerInfo } from "@/features/company-settings/schema";
 import { useUpdateManufacturerInfo } from "@/features/company-settings/hooks/useManufacturerInfo";
+import { toast } from "sonner";
 
 export default function ManageCompanySettingsForm({ companyData }: { companyData: ManufacturerInfo }) {
     const router = useRouter();
@@ -87,8 +88,24 @@ export default function ManageCompanySettingsForm({ companyData }: { companyData
             });
 
             await updateMutation.mutateAsync(formData);
+            toast.success("Success",
+                {
+                    description: "Company details updated successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         } catch (error) {
-            console.error("Failed to update company settings:", error);
+            console.error("Failed to update company details:", error);
+            toast.error("Error",
+                {
+                    description: "Failed to update company details",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         }
     };
 

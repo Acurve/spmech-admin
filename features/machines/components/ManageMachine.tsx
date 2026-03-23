@@ -25,6 +25,7 @@ import { icons } from "@/constants/icons";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PageSkeleton from "@/components/loaders/PageSkeleton";
 import { SimpleLoader } from "@/components/loaders";
+import { toast } from "sonner";
 
 // Helper component for nested specifications
 const NestedSpecArray = ({ control, specIndex, watch }: { control: any; specIndex: number, watch: any }) => {
@@ -292,9 +293,25 @@ export function ManageMachineForm({ machine }: { machine: MachineResponse }) {
             else if (typeof data.outlineImage === 'string') formData.append("outlineImage", data.outlineImage);
 
             await updateMachineMutation.mutateAsync({ id: machine._id!, updates: formData as any });
+            toast.success("Success",
+                {
+                    description: "Machine updated successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
             router.push("/machines");
         } catch (error) {
             console.error("Failed to update machine:", error);
+            toast.error("Error",
+                {
+                    description: "Failed to update machine",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         }
     };
 

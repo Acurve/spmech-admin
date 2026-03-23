@@ -17,6 +17,7 @@ import { ImageUploader } from "@/components/shared";
 import { categorySchema } from "@/features/categories/schema";
 import { useCreateCategory } from "@/features/categories/hooks/useCategory";
 import { Header, HeaderBackNavigation, HeaderDescription, HeaderGroup, HeaderTitle } from "@/components/layout";
+import { toast } from "sonner";
 
 export default function AddCategoryPage() {
     const router = useRouter();
@@ -76,9 +77,25 @@ export default function AddCategoryPage() {
             });
 
             await createCategoryMutation.mutateAsync(formData as any);
+            toast.success("Success",
+                {
+                    description: "Category created successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
             router.push("/categories");
         } catch (error) {
             console.error("Failed to create category:", error);
+            toast.error("Error",
+                {
+                    description: "Failed to create category",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         }
     };
 

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { SimpleLoader } from "@/components/loaders";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
     const { data: response, isLoading, isError } = useUser();
@@ -66,7 +67,24 @@ export default function ProfilePage() {
     const submit = (data: UpdateUserSchemaType) => {
         api.put(`/users/${user._id}`, data).then((res) => {
             setShowPasswordForm(false);
+            toast.success("Success",
+                {
+                    description: "Password updated successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         }).catch((err) => {
+            console.error(err)
+            toast.error("Error",
+                {
+                    description: "Failed to update password",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         })
     }
 

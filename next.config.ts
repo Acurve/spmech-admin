@@ -8,9 +8,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: isDev
-          ? "http://127.0.0.1:3000/api/v1/:path*"
-          : `${env.API_PREFIX}/:path*`
+        destination: "http://127.0.0.1:3000/api/v1/:path*"
       }
     ]
   }

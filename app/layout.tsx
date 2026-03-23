@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 import { LenisProvider } from "@/providers/LenisProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import QueryProvider from "@/providers/QueryProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -29,6 +30,20 @@ export default function RootLayout({
         <QueryProvider>
           <LenisProvider>
             <TooltipProvider>{children}</TooltipProvider>
+            <Toaster
+              position="top-center"
+              duration={3000}
+              toastOptions={
+                {
+                  cancelButtonStyle: {
+                    backgroundColor: "white"
+                  },
+                  actionButtonStyle: {
+                    backgroundColor: "white"
+                  }
+                }
+              }
+              richColors />
           </LenisProvider>
         </QueryProvider>
       </body>

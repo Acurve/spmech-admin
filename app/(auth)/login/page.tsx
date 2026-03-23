@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { authApi, loginSchema, type LoginSchemaType } from "@/features/auth";
 import { SimpleLoader } from "@/components/loaders";
+import { toast } from "sonner";
 
 export default function LoginPage() {
     // router is no longer needed since we use window.location.href for a hard redirect
@@ -36,10 +37,27 @@ export default function LoginPage() {
         setError("");
 
         authApi.login(data)
-            .then(() => setGlobalLoading(true))
+            .then(() => {
+                setGlobalLoading(true);
+                toast.success("Success",
+                    {
+                        description: "Logged in successfully",
+                        cancel: {
+                            label: "Dismiss",
+                            onClick: () => toast.dismiss()
+                        },
+                    });
+            })
             .then(() => router.push("/"))
             .catch(err => {
-
+                toast.error("Error",
+                    {
+                        description: "Failed to login",
+                        cancel: {
+                            label: "Dismiss",
+                            onClick: () => toast.dismiss()
+                        },
+                    });
                 setError(err.response?.data?.message || "Invalid credentials. Please try again.")
 
             })

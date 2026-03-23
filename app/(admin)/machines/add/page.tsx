@@ -21,6 +21,7 @@ import { Header, HeaderBackNavigation, HeaderDescription, HeaderGroup, HeaderTit
 import { useCategories } from "@/features/categories/hooks/useCategory";
 import { machineSchema } from "@/features/machines/schema";
 import { useCreateMachine, useMachineKeys } from "@/features/machines/hooks/useMachine";
+import { toast } from "sonner";
 
 // Helper component for nested specifications
 const NestedSpecArray = ({ control, specIndex, watch }: { control: any; specIndex: number, watch: any }) => {
@@ -166,9 +167,25 @@ export default function AddMachinePage() {
             if (data.outlineImage instanceof File) formData.append("outlineImage", data.outlineImage);
 
             await createMachineMutation.mutateAsync(formData as any);
+            toast.success("Success",
+                {
+                    description: "Machine added successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
             router.push("/machines");
         } catch (error) {
-            console.error("Failed to create machine:", error);
+            console.error("Failed to add machine:", error);
+            toast.error("Error",
+                {
+                    description: "Failed to add machine",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
         }
     };
 

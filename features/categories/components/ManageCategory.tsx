@@ -24,6 +24,7 @@ import { Header, HeaderBackNavigation, HeaderDescription, HeaderGroup, HeaderTit
 import { SimpleLoader } from "@/components/loaders";
 import { icons } from "@/constants/icons";
 import PageSkeleton from "@/components/loaders/PageSkeleton";
+import { toast } from "sonner";
 
 const CategoryDangerZone = ({ categoryId, categoryName }: { categoryId: string; categoryName: string }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -134,11 +135,27 @@ const ManageCategoryForm = ({ category }: { category: Category }) => {
             });
 
             await updateCategoryMutation.mutateAsync({ id: category._id as string, updates: formData as any });
+            toast.success("Success",
+                {
+                    description: "Category updated successfully",
+                    cancel: {
+                        label: "Dismiss",
+                        onClick: () => toast.dismiss()
+                    },
+                });
             router.push("/categories");
         } catch (error) {
             console.error("Failed to update category:", error);
+            toast.error("Error", {
+                description: "Failed to update category",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss()
+                }
+            });
         }
     };
+
 
     return (
         <>
