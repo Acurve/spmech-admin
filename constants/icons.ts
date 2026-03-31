@@ -1,4 +1,4 @@
-import { Cog, LucideIcon, Layers, LayoutDashboard, MessageSquare, Package, Trash, Download, SplinePointer, Calendar, Pencil, AlertTriangle, Plus, Upload, ExternalLink } from "lucide-react"
+import { Cog, LucideIcon, Layers, LayoutDashboard, MessageSquare, Package, Trash, Download, SplinePointer, Calendar, Pencil, AlertTriangle, Plus, Upload, ExternalLink, UserStar } from "lucide-react"
 
 type Icons = Record<any, LucideIcon>
 
@@ -17,4 +17,5 @@ export const icons: Icons = {
     plus: Plus,
     upload: Upload,
     externalLink: ExternalLink,
+    client: UserStar
 }

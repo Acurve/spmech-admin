@@ -35,6 +35,7 @@ const overviewItems = [
     { label: 'Machines', icon: icons.machine, href: '/machines' },
     { label: 'Categories', icon: icons.category, href: '/categories' },
     { label: 'Inquiries', icon: icons.contact, href: '/inquiries' },
+    { label: 'Clients', icon: icons.client, href: '/clients' },
 ]
 
 export default function AppSidebar() {
