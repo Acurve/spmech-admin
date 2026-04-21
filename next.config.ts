@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
           : `${env.API_PREFIX}/:path*`
       }
     ]
-  }
+  },
+  experimental: {
+    proxyClientMaxBodySize: '50mb',
+  },
 };
 
 export default nextConfig;

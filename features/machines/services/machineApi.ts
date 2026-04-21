@@ -3,7 +3,7 @@ import { Machine, MachineCreateInput, MachineUpdateInput } from "../schema";
 
 export const machinesApi = {
     getAll: async (): Promise<any> => {
-        const { data } = await api.get(`/products/machines`);
+        const { data } = await api.get(`/products/machines?limit=50`);
         return data;
     },
 
