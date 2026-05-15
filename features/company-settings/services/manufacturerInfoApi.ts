@@ -9,7 +9,7 @@ export const manufacturerInfoApi = {
         return data;
     },
 
-    update: async (updates: UpdateManufacturerInfo | FormData): Promise<any> => {
+    update: async (updates: UpdateManufacturerInfo): Promise<any> => {
         const { data } = await api.put(`/products/manufacturer`, updates, { withCredentials: true });
         return data;
     },

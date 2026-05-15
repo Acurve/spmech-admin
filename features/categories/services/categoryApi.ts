@@ -13,12 +13,12 @@ export const categoryApi = {
         return data;
     },
 
-    create: async (category: CategoryCreateInput | FormData): Promise<any> => {
+    create: async (category: CategoryCreateInput): Promise<any> => {
         const { data } = await api.post(`/products/categories`, category);
         return data;
     },
 
-    update: async (id: string, updates: CategoryUpdateInput | FormData): Promise<Category> => {
+    update: async (id: string, updates: CategoryUpdateInput): Promise<Category> => {
         const { data } = await api.put(`/products/categories/${id}`, updates);
         return data;
     },

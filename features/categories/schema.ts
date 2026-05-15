@@ -35,14 +35,14 @@ export const categorySchema = z.object({
                 "Only JPG, PNG, WEBP allowed"
             )
     ]),
-    videoUrl: z.string().url("Valid URL required").optional().or(z.literal('')),
-    pdfUrl: z.string().url("Valid URL required").optional().or(z.literal('')),
+    videoUrl: z.url("Valid URL required").optional(),
+    pdfUrl: z.url("Valid URL required").optional(),
     createdAt: z.string().optional(),
     updatedAt: z.string().optional(),
 });
 
 export type Category = z.infer<typeof categorySchema>;
-export type CategoryOutput = Omit<Category, "primaryImage" | "secondaryImage" | "thirdImage"> & { primaryImage: string, secondaryImage: string, thirdImage: string };
+export type CategoryOutput = Omit<Category, "primaryImage" | "secondaryImage" | "thirdImage"> & { primaryImage: string, secondaryImage: string, thirdImage: string; };
 
 export type CategoryCreateInput = Omit<Category, "_id" | "createdAt" | "updatedAt">;
 

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Plus, GripVertical, X } from "lucide-react";
+import { Trash2, Plus, GripVertical, X, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // UI components
@@ -22,6 +22,7 @@ import { useCategories } from "@/features/categories/hooks/useCategory";
 import { machineSchema } from "@/features/machines/schema";
 import { useCreateMachine, useMachineKeys } from "@/features/machines/hooks/useMachine";
 import { toast } from "sonner";
+import { uploadFiles } from "@/lib/upload";
 
 // Helper component for nested specifications
 const NestedSpecArray = ({ control, specIndex, watch }: { control: any; specIndex: number, watch: any }) => {
@@ -77,6 +78,7 @@ const NestedSpecArray = ({ control, specIndex, watch }: { control: any; specInde
 export default function AddMachinePage() {
     const router = useRouter();
     const createMachineMutation = useCreateMachine();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
     const categories = categoriesResponse?.data?.data || [];
@@ -135,57 +137,78 @@ export default function AddMachinePage() {
         }
     }, [modelName, setValue]);
 
+    const isSubmitting = isUploading || createMachineMutation.isPending;
+
     const onSubmit = async (data: any) => {
         try {
-            const formData = new FormData();
+            // 1. Collect all image File objects that need uploading
+            const imageFields = ["image1", "image2", "image3", "outlineImage"] as const;
+            const filesToUpload = imageFields
+                .filter((key) => data[key] instanceof File)
+                .map((key) => ({ fieldName: key, file: data[key] as File, folder: "machines" }));
 
-            // Transform Specifications
-            const formattedSpecs = Object.fromEntries(
-                data.specifications!.map(({ key, value }: { key: string, value: any }) => [key, typeof value === "string" ? value : Object.fromEntries(value.map(({ subKey, subValue }: { subKey: string, subValue: string }) => [subKey, subValue]))]))
-
-            if (data.featureDescriptions) {
-                const formattedFeats = Object.fromEntries(
-                    data.featureDescriptions!.map(({ key, value }: { key: string, value: any }) => [key, value]))
-                formData.append("featureDescriptions", JSON.stringify(formattedFeats));
+            // 2. Upload files via presigned URLs (convert to webp → presign → PUT to S3)
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                filesToUpload.forEach((f, i) => {
+                    data[f.fieldName] = uploadedUrls[i];
+                });
+                setIsUploading(false);
             }
 
-            formData.append("modelName", data.modelName);
-            formData.append("slug", data.slug);
-            formData.append("categoryId", data.categoryId);
-            formData.append("description", data.description);
-            formData.append("order", data.order.toString());
-            formData.append("status", data.status);
-            if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
+            // 3. Transform specifications to object format
+            const formattedSpecs = Object.fromEntries(
+                data.specifications!.map(({ key, value }: { key: string, value: any }) => [
+                    key,
+                    typeof value === "string"
+                        ? value
+                        : Object.fromEntries(value.map(({ subKey, subValue }: { subKey: string, subValue: string }) => [subKey, subValue]))
+                ])
+            );
 
-            // Stringify JSON fields
-            formData.append("specifications", JSON.stringify(formattedSpecs));
+            const formattedFeats = data.featureDescriptions
+                ? Object.fromEntries(data.featureDescriptions.map(({ key, value }: { key: string, value: any }) => [key, value]))
+                : {};
 
-            // Append images
-            if (data.image1 instanceof File) formData.append("image1", data.image1);
-            if (data.image2 instanceof File) formData.append("image2", data.image2);
-            if (data.image3 instanceof File) formData.append("image3", data.image3);
-            if (data.outlineImage instanceof File) formData.append("outlineImage", data.outlineImage);
+            // 4. Build clean JSON payload
+            const payload = {
+                modelName: data.modelName,
+                slug: data.slug,
+                categoryId: data.categoryId,
+                description: data.description,
+                order: data.order,
+                status: data.status,
+                videoUrl: data.videoUrl || undefined,
+                specifications: formattedSpecs,
+                featureDescriptions: formattedFeats,
+                image1: data.image1 || undefined,
+                image2: data.image2 || undefined,
+                image3: data.image3 || undefined,
+                outlineImage: data.outlineImage || undefined,
+            };
 
-            await createMachineMutation.mutateAsync(formData as any);
-            toast.success("Success",
-                {
-                    description: "Machine added successfully",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            await createMachineMutation.mutateAsync(payload as any);
+            toast.success("Success", {
+                description: "Machine added successfully",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
             router.push("/machines");
         } catch (error) {
+            setIsUploading(false);
             console.error("Failed to add machine:", error);
-            toast.error("Error",
-                {
-                    description: "Failed to add machine",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to add machine",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
         }
     };
 
@@ -200,9 +223,15 @@ export default function AddMachinePage() {
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button type="reset" form="add-machine-form" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')}>Cancel</Button>
-                    <Button type="submit" form="add-machine-form" size="lg" className="cursor-pointer" disabled={createMachineMutation.isPending}>
-                        {createMachineMutation.isPending ? "Saving..." : "Save Machine"}
+                    <Button type="reset" form="add-machine-form" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="add-machine-form" size="lg" className="cursor-pointer" disabled={isSubmitting}>
+                        {isUploading ? (
+                            <><Loader2 className="animate-spin mr-2" size={16} /> Uploading Images...</>
+                        ) : createMachineMutation.isPending ? (
+                            <><Loader2 className="animate-spin mr-2" size={16} /> Saving...</>
+                        ) : (
+                            "Save Machine"
+                        )}
                     </Button>
                 </HeaderGroup>
             </Header>

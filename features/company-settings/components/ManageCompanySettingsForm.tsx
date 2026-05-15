@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // UI components
@@ -20,10 +22,12 @@ import { icons } from "@/constants/icons";
 import { manufacturerInfoSchema, ManufacturerInfo } from "@/features/company-settings/schema";
 import { useUpdateManufacturerInfo } from "@/features/company-settings/hooks/useManufacturerInfo";
 import { toast } from "sonner";
+import { uploadFiles } from "@/lib/upload";
 
 export default function ManageCompanySettingsForm({ companyData }: { companyData: ManufacturerInfo }) {
     const router = useRouter();
     const updateMutation = useUpdateManufacturerInfo();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { control, handleSubmit, formState: { errors, isDirty }, watch } = useForm<any>({
         resolver: zodResolver(manufacturerInfoSchema),
@@ -59,53 +63,66 @@ export default function ManageCompanySettingsForm({ companyData }: { companyData
         name: "timeline",
     });
 
+    const isSubmitting = isUploading || updateMutation.isPending;
+
     const onSubmit = async (data: ManufacturerInfo) => {
         try {
-            const formData = new FormData();
+            const timeline = data.timeline || [];
 
-            formData.append("name", data.name);
-            if (data.logoText) formData.append("logoText", data.logoText);
-            if (data.tagline) formData.append("tagline", data.tagline);
-
-            formData.append("contactDetails", JSON.stringify(data.contactDetails || {}));
-
-            // Clean up empty profile strings
-            const validProfileText = (data.profileText || []).filter((text: string) => typeof text === 'string' && text.trim() !== "");
-            formData.append("profileText", JSON.stringify(validProfileText));
-
-            formData.append("stats", JSON.stringify(data.stats || []));
-
-            // Timeline mapping: The backend expects strict array brackets for multipart boundaries
-            (data.timeline || []).forEach((item: ManufacturerInfo['timeline'][number], index: number) => {
-                formData.append(`timeline[${index}][year]`, item.year);
-                formData.append(`timeline[${index}][message]`, item.message);
-
+            // 1. Collect timeline entries that have File images
+            const filesToUpload: { arrayIndex: number; file: File; folder: string }[] = [];
+            timeline.forEach((item, index) => {
                 if (item.imageUrl instanceof File) {
-                    formData.append(`timeline[${index}][imageUrl]`, item.imageUrl);
-                } else if (typeof item.imageUrl === "string") {
-                    formData.append(`timeline[${index}][imageUrl]`, item.imageUrl);
+                    filesToUpload.push({ arrayIndex: index, file: item.imageUrl, folder: "uploads" });
                 }
             });
 
-            await updateMutation.mutateAsync(formData);
-            toast.success("Success",
-                {
-                    description: "Company details updated successfully",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
+            // 2. Upload new files via presigned URLs
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                filesToUpload.forEach((f, i) => {
+                    (timeline[f.arrayIndex] as any).imageUrl = uploadedUrls[i];
                 });
+                setIsUploading(false);
+            }
+
+            // 3. Build clean JSON payload (no FormData, no JSON.stringify wrapping)
+            const payload = {
+                name: data.name,
+                logoText: data.logoText || undefined,
+                tagline: data.tagline || undefined,
+                contactDetails: data.contactDetails || {},
+                profileText: (data.profileText || []).filter((text: string) => typeof text === "string" && text.trim() !== ""),
+                stats: data.stats || [],
+                timeline: timeline.map((item) => ({
+                    ...(item as any)._id ? { _id: (item as any)._id } : {},
+                    year: item.year,
+                    message: item.message,
+                    imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
+                })),
+            };
+
+            await updateMutation.mutateAsync(payload as any);
+            toast.success("Success", {
+                description: "Company details updated successfully",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
         } catch (error) {
+            setIsUploading(false);
             console.error("Failed to update company details:", error);
-            toast.error("Error",
-                {
-                    description: "Failed to update company details",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to update company details",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
         }
     };
 
@@ -119,11 +136,16 @@ export default function ManageCompanySettingsForm({ companyData }: { companyData
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button type="reset" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/')}>Cancel</Button>
-                    <Button type="submit" form="company-settings-form" size="lg" className="cursor-pointer" disabled={updateMutation.isPending || !isDirty}>
-                        {updateMutation.isPending ? (
+                    <Button type="reset" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/')} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="company-settings-form" size="lg" className="cursor-pointer" disabled={isSubmitting || !isDirty}>
+                        {isUploading ? (
                             <div className="flex items-center gap-2">
-                                <SimpleLoader />
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Uploading Images...</span>
+                            </div>
+                        ) : updateMutation.isPending ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} />
                                 <span>Saving...</span>
                             </div>
                         ) : <span>Save Settings</span>}

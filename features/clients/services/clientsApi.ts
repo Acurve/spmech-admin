@@ -8,7 +8,7 @@ export const clientsApi = {
         return data;
     },
 
-    update: async (updates: UpdateClients | FormData): Promise<any> => {
+    update: async (updates: UpdateClients): Promise<any> => {
         const { data } = await api.put(`/clients`, updates, { withCredentials: true });
         return data;
     },

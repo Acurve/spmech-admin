@@ -1,27 +1,29 @@
 "use client";
 
-import React from "react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Plus, GripVertical } from "lucide-react";
+import { GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 
 // Local imports
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { ImageUploader } from "@/components/shared";
-import { categorySchema } from "@/features/categories/schema";
-import { useCreateCategory } from "@/features/categories/hooks/useCategory";
 import { Header, HeaderBackNavigation, HeaderDescription, HeaderGroup, HeaderTitle } from "@/components/layout";
+import { ImageUploader } from "@/components/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useCreateCategory } from "@/features/categories/hooks/useCategory";
+import { categorySchema } from "@/features/categories/schema";
+import { uploadFiles } from "@/lib/upload";
 import { toast } from "sonner";
 
 export default function AddCategoryPage() {
     const router = useRouter();
     const createCategoryMutation = useCreateCategory();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { control, handleSubmit, formState: { errors }, setValue } = useForm({
         resolver: zodResolver(categorySchema.extend({
@@ -58,44 +60,64 @@ export default function AddCategoryPage() {
         setValue("slug", slug, { shouldValidate: true });
     };
 
+    const isSubmitting = isUploading || createCategoryMutation.isPending;
+
     const onSubmit = async (data: any) => {
         try {
-            // Our mutation expects FormData when files are involved:
-            const formData = new FormData();
+            // 1. Collect all image File objects that need uploading
+            const imageFields = ["primaryImage", "secondaryImage", "thirdImage"] as const;
+            const filesToUpload = imageFields
+                .filter((key) => data[key] instanceof File)
+                .map((key) => ({ fieldName: key, file: data[key] as File, folder: "categories" }));
 
-            Object.keys(data).forEach(key => {
-                if (key === 'commonAdvantages') {
-                    // Send array elements properly
-                    data[key].forEach((adv: string) => {
-                        if (adv.trim() !== '') formData.append('commonAdvantages[]', adv);
-                    });
-                } else if (data[key] instanceof File) {
-                    formData.append(key, data[key]);
-                } else if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
-                    formData.append(key, String(data[key]));
-                }
-            });
-
-            await createCategoryMutation.mutateAsync(formData as any);
-            toast.success("Success",
-                {
-                    description: "Category created successfully",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
+            // 2. Upload files via presigned URLs (convert to webp → presign → PUT to S3)
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                // Replace File objects with the returned S3 public URLs
+                filesToUpload.forEach((f, i) => {
+                    data[f.fieldName] = uploadedUrls[i];
                 });
+                setIsUploading(false);
+            }
+
+            // 3. Build clean JSON payload (no FormData)
+            const payload = {
+                categoryId: data.categoryId,
+                categoryName: data.categoryName,
+                slug: data.slug,
+                description: data.description,
+                commonAdvantages: (data.commonAdvantages as string[]).filter((a) => a.trim() !== ""),
+                order: data.order,
+                status: data.status,
+                primaryImage: data.primaryImage || undefined,
+                secondaryImage: data.secondaryImage || undefined,
+                thirdImage: data.thirdImage || undefined,
+                videoUrl: data.videoUrl || undefined,
+                pdfUrl: data.pdfUrl || undefined,
+            };
+
+            await createCategoryMutation.mutateAsync(payload as any);
+            toast.success("Success", {
+                description: "Category created successfully",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
             router.push("/categories");
         } catch (error) {
+            setIsUploading(false);
             console.error("Failed to create category:", error);
-            toast.error("Error",
-                {
-                    description: "Failed to create category",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to create category",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
         }
     };
 
@@ -110,9 +132,17 @@ export default function AddCategoryPage() {
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button type="reset" form="create-category-form" variant="outline" size="lg" className="cursor-pointer">Reset</Button>
+                    <Button type="reset" form="create-category-form" variant="outline" size="lg" className="cursor-pointer" disabled={isSubmitting}>Reset</Button>
 
-                    <Button type="submit" form="create-category-form" size="lg" className="cursor-pointer">Create Category</Button>
+                    <Button type="submit" form="create-category-form" size="lg" className="cursor-pointer" disabled={isSubmitting}>
+                        {isUploading ? (
+                            <><Loader2 className="animate-spin mr-2" size={16} /> Uploading Images...</>
+                        ) : createCategoryMutation.isPending ? (
+                            <><Loader2 className="animate-spin mr-2" size={16} /> Creating...</>
+                        ) : (
+                            "Create Category"
+                        )}
+                    </Button>
                 </HeaderGroup>
             </Header>
 

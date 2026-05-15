@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Plus, GripVertical, ChevronLeft } from "lucide-react";
+import { Trash2, Plus, GripVertical, ChevronLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from 'next/link';
 
@@ -25,6 +25,7 @@ import { SimpleLoader } from "@/components/loaders";
 import { icons } from "@/constants/icons";
 import PageSkeleton from "@/components/loaders/PageSkeleton";
 import { toast } from "sonner";
+import { uploadFiles } from "@/lib/upload";
 
 const CategoryDangerZone = ({ categoryId, categoryName }: { categoryId: string; categoryName: string }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -87,6 +88,7 @@ const CategoryDangerZone = ({ categoryId, categoryName }: { categoryId: string; 
 const ManageCategoryForm = ({ category }: { category: Category }) => {
     const router = useRouter();
     const updateCategoryMutation = useUpdateCategory();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { control, handleSubmit, formState: { errors, isDirty } } = useForm<CategoryOutput>({
         resolver: zodResolver(categorySchema as any),
@@ -110,48 +112,61 @@ const ManageCategoryForm = ({ category }: { category: Category }) => {
         name: "commonAdvantages" as never,
     });
 
+    const isSubmitting = isUploading || updateCategoryMutation.isPending;
+
     const onSubmit = async (data: CategoryOutput) => {
         try {
-            const formData = new FormData();
+            // 1. Collect image fields that are File uploads
+            const imageFields = ["primaryImage", "secondaryImage", "thirdImage"] as const;
+            const filesToUpload = imageFields
+                .filter((key) => data[key as keyof CategoryOutput] instanceof File)
+                .map((key) => ({ fieldName: key, file: data[key as keyof CategoryOutput] as unknown as File, folder: "categories" }));
 
-            Object.keys(data).forEach(key => {
-                const value = data[key as keyof CategoryOutput];
-                if (key === 'commonAdvantages') {
-                    // Send array elements properly
-                    data.commonAdvantages.forEach((adv, index) => {
-                        if (adv.trim() !== '') {
-                            formData.append(`commonAdvantages[${index}]`, adv);
-                        }
-                    });
-                } else if (value !== undefined && value !== null) {
-                    // Important for files: if value is string and it's an existing image URL, we shouldn't send it as a File upload.
-                    // But if it's a new File blob, we do.
-                    // If it is just keeping the existing image, we can either:
-                    // 1. Not send it, letting backend keep existing
-                    // 2. Send the URL string if the backend handles it.
-                    // assuming the backend expects file or string depending on if it changed.
-                    formData.append(key, value as string | Blob);
-                }
-            });
-
-            await updateCategoryMutation.mutateAsync({ id: category._id as string, updates: formData as any });
-            toast.success("Success",
-                {
-                    description: "Category updated successfully",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
+            // 2. Upload new files via presigned URLs
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                filesToUpload.forEach((f, i) => {
+                    (data as any)[f.fieldName] = uploadedUrls[i];
                 });
-            router.push("/categories");
-        } catch (error) {
-            console.error("Failed to update category:", error);
-            toast.error("Error", {
-                description: "Failed to update category",
+                setIsUploading(false);
+            }
+
+            // 3. Build clean JSON payload
+            const payload = {
+                categoryName: data.categoryName,
+                slug: data.slug,
+                description: data.description,
+                commonAdvantages: data.commonAdvantages.filter((adv) => adv.trim() !== ""),
+                order: data.order,
+                status: data.status,
+                videoUrl: data.videoUrl || "",
+                pdfUrl: data.pdfUrl || "",
+                primaryImage: typeof data.primaryImage === "string" ? data.primaryImage : undefined,
+                secondaryImage: typeof data.secondaryImage === "string" ? data.secondaryImage : undefined,
+                thirdImage: typeof data.thirdImage === "string" ? data.thirdImage : undefined,
+            };
+
+            await updateCategoryMutation.mutateAsync({ id: category._id as string, updates: payload as any });
+            toast.success("Success", {
+                description: "Category updated successfully",
                 cancel: {
                     label: "Dismiss",
-                    onClick: () => toast.dismiss()
-                }
+                    onClick: () => toast.dismiss(),
+                },
+            });
+            router.push("/categories");
+        } catch (error) {
+            setIsUploading(false);
+            console.error("Failed to update category:", error);
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to update category",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
             });
         }
     };
@@ -168,13 +183,19 @@ const ManageCategoryForm = ({ category }: { category: Category }) => {
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button type="button" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/categories')}>Cancel</Button>
-                    <Button type="submit" form="update-category-form" size="lg" className="cursor-pointer" disabled={updateCategoryMutation.isPending || !isDirty}>
-                        {updateCategoryMutation.isPending ? <div className="flex items-center gap-2">
-                            <SimpleLoader />
-                            <span>Saving...</span>
-                        </div>
-                            : <span>Save Changes</span>}
+                    <Button type="button" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/categories')} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="update-category-form" size="lg" className="cursor-pointer" disabled={isSubmitting || !isDirty}>
+                        {isUploading ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Uploading Images...</span>
+                            </div>
+                        ) : updateCategoryMutation.isPending ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Saving...</span>
+                            </div>
+                        ) : <span>Save Changes</span>}
                     </Button>
                 </HeaderGroup>
             </Header>

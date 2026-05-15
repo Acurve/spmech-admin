@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Plus, GripVertical, X, Trash } from "lucide-react";
+import { Trash2, Plus, GripVertical, X, Trash, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // UI components
@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import PageSkeleton from "@/components/loaders/PageSkeleton";
 import { SimpleLoader } from "@/components/loaders";
 import { toast } from "sonner";
+import { uploadFiles } from "@/lib/upload";
 
 // Helper component for nested specifications
 const NestedSpecArray = ({ control, specIndex, watch }: { control: any; specIndex: number, watch: any }) => {
@@ -164,6 +165,7 @@ export default function ManageMachine({ slug, category }: ManageMachineProps) {
 export function ManageMachineForm({ machine }: { machine: MachineResponse }) {
     const router = useRouter();
     const updateMachineMutation = useUpdateMachine();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
     const categories = categoriesResponse?.data?.data || [];
@@ -251,67 +253,78 @@ export function ManageMachineForm({ machine }: { machine: MachineResponse }) {
         name: "featureDescriptions" as never,
     });
 
+    const isSubmitting = isUploading || updateMachineMutation.isPending;
+
     const onSubmit = async (data: any) => {
         try {
-            const formData = new FormData();
+            // 1. Collect image fields that are new File uploads (not existing string URLs)
+            const imageFields = ["image1", "image2", "image3", "outlineImage"] as const;
+            const filesToUpload = imageFields
+                .filter((key) => data[key] instanceof File)
+                .map((key) => ({ fieldName: key, file: data[key] as File, folder: "machines" }));
 
-            const formattedSpecs = Object.fromEntries(
-                data.specifications!.map(({ key, value }: { key: string, value: any }) => [key, typeof value === "string" ? value : Object.fromEntries(value.map(({ subKey, subValue }: { subKey: string, subValue: string }) => [subKey, subValue]))]))
-
-
-            if (data.featureDescriptions) {
-
-                const formattedFeats = Object.fromEntries(
-                    data.featureDescriptions.map(({ key, value }: { key: string, value: any }) => [key, value]))
-                formData.append("featureDescriptions", JSON.stringify(formattedFeats));
+            // 2. Upload new files via presigned URLs
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                filesToUpload.forEach((f, i) => {
+                    data[f.fieldName] = uploadedUrls[i];
+                });
+                setIsUploading(false);
             }
 
-            // Append text fields
-            formData.append("modelName", data.modelName);
-            formData.append("slug", data.slug);
-            formData.append("categoryId", data.categoryId);
-            formData.append("description", data.description);
-            formData.append("order", (data.order || 0).toString());
-            formData.append("status", data.status);
-            formData.append("videoUrl", data.videoUrl || "");
+            // 3. Transform specifications to object format
+            const formattedSpecs = Object.fromEntries(
+                data.specifications!.map(({ key, value }: { key: string, value: any }) => [
+                    key,
+                    typeof value === "string"
+                        ? value
+                        : Object.fromEntries(value.map(({ subKey, subValue }: { subKey: string, subValue: string }) => [subKey, subValue]))
+                ])
+            );
 
-            // Stringify JSON fields
-            formData.append("specifications", JSON.stringify(formattedSpecs));
+            const formattedFeats = data.featureDescriptions
+                ? Object.fromEntries(data.featureDescriptions.map(({ key, value }: { key: string, value: any }) => [key, value]))
+                : {};
 
-            // Append images ONLY if they are File instances, otherwise they remain string URLs handled by backend maybe?
-            // Actually, if backend allows string URLs for unedited files, we can just append them.
-            if (data.image1 instanceof File) formData.append("image1", data.image1);
-            else if (typeof data.image1 === 'string') formData.append("image1", data.image1);
+            // 4. Build clean JSON payload
+            const payload = {
+                modelName: data.modelName,
+                slug: data.slug,
+                categoryId: data.categoryId,
+                description: data.description,
+                order: data.order || 0,
+                status: data.status,
+                videoUrl: data.videoUrl || "",
+                specifications: formattedSpecs,
+                featureDescriptions: formattedFeats,
+                image1: typeof data.image1 === "string" ? data.image1 : undefined,
+                image2: typeof data.image2 === "string" ? data.image2 : undefined,
+                image3: typeof data.image3 === "string" ? data.image3 : undefined,
+                outlineImage: typeof data.outlineImage === "string" ? data.outlineImage : undefined,
+            };
 
-            if (data.image2 instanceof File) formData.append("image2", data.image2);
-            else if (typeof data.image2 === 'string') formData.append("image2", data.image2);
-
-            if (data.image3 instanceof File) formData.append("image3", data.image3);
-            else if (typeof data.image3 === 'string') formData.append("image3", data.image3);
-
-            if (data.outlineImage instanceof File) formData.append("outlineImage", data.outlineImage);
-            else if (typeof data.outlineImage === 'string') formData.append("outlineImage", data.outlineImage);
-
-            await updateMachineMutation.mutateAsync({ id: machine._id!, updates: formData as any });
-            toast.success("Success",
-                {
-                    description: "Machine updated successfully",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            await updateMachineMutation.mutateAsync({ id: machine._id!, updates: payload as any });
+            toast.success("Success", {
+                description: "Machine updated successfully",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
             router.push("/machines");
         } catch (error) {
+            setIsUploading(false);
             console.error("Failed to update machine:", error);
-            toast.error("Error",
-                {
-                    description: "Failed to update machine",
-                    cancel: {
-                        label: "Dismiss",
-                        onClick: () => toast.dismiss()
-                    },
-                });
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to update machine",
+                cancel: {
+                    label: "Dismiss",
+                    onClick: () => toast.dismiss(),
+                },
+            });
         }
     };
 
@@ -328,14 +341,19 @@ export function ManageMachineForm({ machine }: { machine: MachineResponse }) {
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')}>Cancel</Button>
-                    <Button type="submit" form="manage-machine-form" size="lg" className="cursor-pointer" disabled={updateMachineMutation.isPending || !isDirty}>
-                        {updateMachineMutation.isPending ?
+                    <Button variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/machines')} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="manage-machine-form" size="lg" className="cursor-pointer" disabled={isSubmitting || !isDirty}>
+                        {isUploading ? (
                             <div className="flex items-center gap-2">
-                                <SimpleLoader />
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Uploading Images...</span>
+                            </div>
+                        ) : updateMachineMutation.isPending ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} />
                                 <span>Saving...</span>
                             </div>
-                            : <span>Save Changes</span>}
+                        ) : <span>Save Changes</span>}
                     </Button>
                 </HeaderGroup>
             </Header>

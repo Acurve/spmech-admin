@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -13,15 +15,18 @@ import { ImageUploader } from "@/components/shared";
 import { Header, HeaderDescription, HeaderGroup, HeaderTitle } from "@/components/layout";
 import { SimpleLoader } from "@/components/loaders";
 import { icons } from "@/constants/icons";
+import { Loader2 } from "lucide-react";
 
 // Hooks and Data
 import { Clients, updateClientsSchema } from "@/features/clients/schema";
 import { useUpdateClients } from "@/features/clients/hooks/useClients";
 import { toast } from "sonner";
+import { uploadFiles } from "@/lib/upload";
 
 export default function ManageClientsForm({ clientsData }: { clientsData: Clients }) {
     const router = useRouter();
     const updateMutation = useUpdateClients();
+    const [isUploading, setIsUploading] = useState(false);
 
     const { control, handleSubmit, formState: { errors, isDirty } } = useForm<any>({
         resolver: zodResolver(updateClientsSchema),
@@ -35,40 +40,56 @@ export default function ManageClientsForm({ clientsData }: { clientsData: Client
         name: "clients",
     });
 
+    const isSubmitting = isUploading || updateMutation.isPending;
+
     const onSubmit = async (data: Clients) => {
         try {
-            const formData = new FormData();
+            const clients = data.clients || [];
 
-            (data.clients || []).forEach((item: Clients['clients'][number], index: number) => {
-                if (item.websiteUrl) {
-                    formData.append(`clients[${index}][websiteUrl]`, item.websiteUrl);
-                }
-                else {
-                    formData.append(`clients[${index}][websiteUrl]`, "");
-                }
-
+            // 1. Collect all client entries that have File images
+            const filesToUpload: { arrayIndex: number; file: File; folder: string }[] = [];
+            clients.forEach((item, index) => {
                 if (item.imageUrl instanceof File) {
-                    formData.append(`clients[${index}][imageUrl]`, item.imageUrl);
-                } else if (typeof item.imageUrl === "string") {
-                    formData.append(`clients[${index}][imageUrl]`, item.imageUrl);
+                    filesToUpload.push({ arrayIndex: index, file: item.imageUrl, folder: "clients" });
                 }
             });
 
-            await updateMutation.mutateAsync(formData);
+            // 2. Upload new files via presigned URLs
+            if (filesToUpload.length > 0) {
+                setIsUploading(true);
+                const uploadedUrls = await uploadFiles(
+                    filesToUpload.map((f) => ({ file: f.file, folder: f.folder })),
+                );
+                filesToUpload.forEach((f, i) => {
+                    (clients[f.arrayIndex] as any).imageUrl = uploadedUrls[i];
+                });
+                setIsUploading(false);
+            }
+
+            // 3. Build clean JSON payload
+            const payload = {
+                clients: clients.map((item) => ({
+                    websiteUrl: item.websiteUrl || "",
+                    imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
+                })),
+            };
+
+            await updateMutation.mutateAsync(payload as any);
             toast.success("Success", {
                 description: "Clients updated successfully",
                 cancel: {
                     label: "Dismiss",
-                    onClick: () => toast.dismiss()
+                    onClick: () => toast.dismiss(),
                 },
             });
         } catch (error) {
+            setIsUploading(false);
             console.error("Failed to update clients:", error);
             toast.error("Error", {
-                description: "Failed to update clients",
+                description: error instanceof Error ? error.message : "Failed to update clients",
                 cancel: {
                     label: "Dismiss",
-                    onClick: () => toast.dismiss()
+                    onClick: () => toast.dismiss(),
                 },
             });
         }
@@ -84,11 +105,16 @@ export default function ManageClientsForm({ clientsData }: { clientsData: Client
                     </HeaderGroup>
                 </HeaderGroup>
                 <HeaderGroup className="gap-2 ml-auto">
-                    <Button type="reset" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/')}>Cancel</Button>
-                    <Button type="submit" form="clients-form" size="lg" className="cursor-pointer" disabled={updateMutation.isPending || !isDirty}>
-                        {updateMutation.isPending ? (
+                    <Button type="reset" variant="outline" size="lg" className="cursor-pointer" onClick={() => router.push('/')} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="clients-form" size="lg" className="cursor-pointer" disabled={isSubmitting || !isDirty}>
+                        {isUploading ? (
                             <div className="flex items-center gap-2">
-                                <SimpleLoader />
+                                <Loader2 className="animate-spin" size={16} />
+                                <span>Uploading Images...</span>
+                            </div>
+                        ) : updateMutation.isPending ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={16} />
                                 <span>Saving...</span>
                             </div>
                         ) : <span>Save Changes</span>}

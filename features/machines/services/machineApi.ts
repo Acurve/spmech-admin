@@ -22,12 +22,12 @@ export const machinesApi = {
         return data;
     },
 
-    create: async (machine: MachineCreateInput | FormData): Promise<Machine> => {
+    create: async (machine: MachineCreateInput): Promise<Machine> => {
         const { data } = await api.post(`/products/machines`, machine);
         return data;
     },
 
-    update: async (id: string, updates: MachineUpdateInput | FormData): Promise<any> => {
+    update: async (id: string, updates: MachineUpdateInput): Promise<any> => {
         const { data } = await api.put(`/products/machines/${id}`, updates);
         return data;
     },
